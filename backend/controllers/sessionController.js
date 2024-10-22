@@ -3,6 +3,8 @@ const ApiKey = require('../models/ApiKeyModel');
 const Session = require('../models/SessionModel');
 const { createSessionFile } = require('../utils/sessionUtils');
 const { sendMessage, sendDocument } = require('../utils/telegramUtils');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const createSessions = async (req, res) => {
   try {

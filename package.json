@@ -20,7 +20,8 @@
     "mongoose": "^7.0.3",
     "node-cron": "^3.0.2",
     "node-telegram-bot-api": "^0.61.0",
-    "sms-activate-org": "^1.2.1"
+    "sms-activate-org": "^1.2.1",
+    "telegram": "^2.25.15"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

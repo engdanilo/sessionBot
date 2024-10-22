@@ -7,7 +7,7 @@ dotenv.config();
 const provider = new ethers.providers.JsonRpcProvider('https://bsc-dataseed.binance.org/');
 
 // Endereço do contrato implantado na rede BSC
-const contractAddress = process.env.CONTRACT_ADDRESS; // Substituir pelo endereço real do contrato
+const contractAddress = process.env.CONTRACT_ADDRESS;
 
 // ABI do contrato
 const abi = SessionBotPayment.abi; 
