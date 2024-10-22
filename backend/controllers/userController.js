@@ -1,68 +1,85 @@
-const User = require('../models/userModel');
-const bcrypt = require('bcrypt');
+const User = require('../models/UserModel');
+const ApiKey = require('../models/ApiKeyModel');
+const smsActivate = require('sms-activate-org');
 
-const createUser = async (req, res) => {
-    try{
-        const { username, email, password, smsActivateApiKey } = req.body;
-        const existingUser = await User.findOne({ $or: [{username}, {email}] });
-        if(existingUser){
-            return res.status(400).json({ message: 'Username or email already exists' });
-        }
+// Função para obter informações do usuário
+const getUserInfo = async (req, res) => {
+  try {
+    const userId = req.user.id; // Supondo que o ID do usuário esteja disponível em req.user após a autenticação
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ username, email, password: hashedPassword, smsActivateApiKey });
-        await newUser.save();
-
-        res.status(201).json({ message: `User ${username} with ${email} has created successfully` });
-    } catch(err){
-        res.status(500).json({ message: `Error to create user: ${err.message}` });
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
+
+    const apiKey = await ApiKey.findOne({ userId });
+
+    res.json({
+      telegramId: user.telegramId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      apiKey: apiKey ? apiKey.key : null, // Retorna a API Key se existir
+    });
+  } catch (error) {
+    console.error('Erro ao obter informações do usuário:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
 };
 
-const getUsers = async (req, res) => {
-    try{
-        const user = await User.find().select('-password -smsActivateApiKey');
-        res.status(200).json(users);
-    } catch (err){
-        res.status(500).json({ message: `Error to get users: ${err.message}` });
+// Função para cadastrar/atualizar a API Key do usuário
+const manageApiKey = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { apiKey } = req.body;
+
+    // Validar a API Key aqui (opcional)
+    // ...
+
+    let apiKeyDocument = await ApiKey.findOne({ userId });
+
+    if (apiKeyDocument) {
+      // API Key já existe, atualizar
+      apiKeyDocument.key = apiKey;
+    } else {
+      // API Key não existe, criar nova
+      apiKeyDocument = new ApiKey({ userId, key: apiKey });
     }
+
+    await apiKeyDocument.save();
+
+    res.json({ message: 'API Key salva com sucesso' });
+  } catch (error) {
+    console.error('Erro ao gerenciar API Key:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
 };
 
-const getUserById = async (req, res) => {
-    try{
-        const user = await User.findById(req.params.id).select('-password -smsActivateApiKey');
-        if(!user){
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.status(200).json(user);
-    } catch(err){
-        res.status(500).json({ message: `Error to get user: ${err.message}` });
+// Função para obter o saldo do usuário no SMS Activate
+const getSmsActivateBalance = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const apiKey = await ApiKey.findOne({ userId });
+    if (!apiKey) {
+      return res.status(400).json({ message: 'API Key não encontrada' });
     }
+
+    // Criar uma instância do cliente da API
+    const api = new smsActivate(apiKey.key);
+
+    // Obter o saldo
+    const balance = await api.getBalance();
+
+    res.json({ balance });
+  } catch (error) {
+    console.error('Erro ao obter saldo do SMS Activate:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
 };
 
-const updateUser = async (req, res) => {
-    try{
-        const {username, email } = req.body;
-        const user = await User.findByIdAndUpdate(req.params.id, req.body, {new: true}.select('-password -smsActivateApiKey'));
-        if(!user){
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.status(200).json({ message: 'User updated successfully', user });
-    } catch(err){
-        res.status(500).json({ message: `Error to update user: ${err.message}` });
-    }
+module.exports = {
+  getUserInfo,
+  manageApiKey,
+  getSmsActivateBalance
 };
-
-const deleteUser = async (req, res) => {
-    try{
-        const user = await User.findByIdAndDelete(req.params.id);
-        if(!user){
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.status(200).json({ message: 'User deleted successfully' });
-    } catch(err){
-        res.status(500).json({ message: `Error to delete user: ${err.message}` });
-    }
-};
-
-module.exports = { createUser, getUsers, getUserById, updateUser, deleteUser };
