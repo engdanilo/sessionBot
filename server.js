@@ -8,8 +8,8 @@ dotenv.config();
 const app = express();
 
 // Importes the routes
-const authRoute = require('./routes/authRoutes');
-const userRoute = require('./routes/userRoutes');
+const authRoutes = require('./backend/routes/authRoutes');
+const userRoutes = require('./backend/routes/userRoutes');
 
 app.use(express.json());
 

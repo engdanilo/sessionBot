@@ -1,57 +1,49 @@
 const User = require('../models/UserModel');
-const ApiKey = require('../models/ApiKeyModel');
 const smsActivate = require('sms-activate-org');
 
 // Função para obter informações do usuário
 const getUserInfo = async (req, res) => {
   try {
-    const userId = req.user.id; // Supondo que o ID do usuário esteja disponível em req.user após a autenticação
+    const userId = req.user.id;
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: 'Usuário não encontrado' });
+      return res.status(404).json({ message: 'User not found' });
     }
-
-    const apiKey = await ApiKey.findOne({ userId });
 
     res.json({
       telegramId: user.telegramId,
       firstName: user.firstName,
       lastName: user.lastName,
       username: user.username,
-      apiKey: apiKey ? apiKey.key : null, // Retorna a API Key se existir
+      apiKey: user.apiKey, // Retorna a API Key diretamente do usuário
+      walletAddress: user.walletAddress, // Retorna o endereço da carteira
+      paid: user.paid, // Retorna o status de pagamento
+      paymentExpiration: user.paymentExpiration // Retorna a data de expiração do pagamento
     });
   } catch (error) {
-    console.error('Erro ao obter informações do usuário:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    console.error('Error getting user information:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-// Função para cadastrar/atualizar a API Key do usuário
+// Função para gerenciar a API Key do usuário
 const manageApiKey = async (req, res) => {
   try {
     const userId = req.user.id;
     const { apiKey } = req.body;
 
-    // Validar a API Key aqui (opcional)
-    // ...
+    // Atualizar a API Key do usuário no banco de dados
+    const updatedUser = await User.findOneAndUpdate({ _id: userId }, { apiKey }, { new: true }); 
 
-    let apiKeyDocument = await ApiKey.findOne({ userId });
-
-    if (apiKeyDocument) {
-      // API Key já existe, atualizar
-      apiKeyDocument.key = apiKey;
-    } else {
-      // API Key não existe, criar nova
-      apiKeyDocument = new ApiKey({ userId, key: apiKey });
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    await apiKeyDocument.save();
-
-    res.json({ message: 'API Key salva com sucesso' });
+    res.json({ message: 'API Key saved successfully' });
   } catch (error) {
-    console.error('Erro ao gerenciar API Key:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    console.error('Error managing API Key:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -59,22 +51,22 @@ const manageApiKey = async (req, res) => {
 const getSmsActivateBalance = async (req, res) => {
   try {
     const userId = req.user.id;
+    const user = await User.findById(userId);
 
-    const apiKey = await ApiKey.findOne({ userId });
-    if (!apiKey) {
-      return res.status(400).json({ message: 'API Key não encontrada' });
+    if (!user || !user.apiKey) {
+      return res.status(400).json({ message: 'API Key not found' });
     }
 
     // Criar uma instância do cliente da API
-    const api = new smsActivate(apiKey.key);
+    const api = new smsActivate(user.apiKey);
 
     // Obter o saldo
     const balance = await api.getBalance();
 
     res.json({ balance });
   } catch (error) {
-    console.error('Erro ao obter saldo do SMS Activate:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    console.error('Error getting SMS Activate balance:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
